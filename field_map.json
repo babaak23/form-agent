@@ -1,0 +1,6 @@
+{
+    "name": "full_name",
+    "email": "email_address",
+    "phone": "phone_number",
+    "message": "user_message"
+}
