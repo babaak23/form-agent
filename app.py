@@ -56,7 +56,8 @@ if st.button("Generate Packets"):
                 st.error(f"Error: {e}")
             else:
                 st.success("Done! Download below.")
-                st.download_button("Download Packets ZIP", data=zip_bytes, file_name="Medicaid_Packets.zip", mime="application/zip")
+                st.download_button("Download Packets ZIP", data=zip_bytes,
+                                   file_name="Medicaid_Packets.zip", mime="application/zip")
 
 st.divider()
 st.caption("Tip: If the text doesn't align in overlay mode, tweak field_map.json positions and re-run.")
