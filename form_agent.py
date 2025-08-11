@@ -27,7 +27,6 @@ def normalize_phone(s: str) -> str:
 def run_cover_mode(excel_bytes: bytes, form_bytes: bytes):
     df = pd.read_excel(io.BytesIO(excel_bytes))
     base_form = fitz.open(stream=form_bytes, filetype="pdf")
-
     output = io.BytesIO()
     zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
     log_rows = []
@@ -68,11 +67,9 @@ def run_cover_mode(excel_bytes: bytes, form_bytes: bytes):
                 page.insert_text((250,y), str(value), fontsize=12)
                 y+=26
             page.insert_text((72,y+12), "Following pages: Original packet for signature & notarization.", fontsize=10)
-
             doc.insert_pdf(base_form)
-            buff = io.BytesIO()
-            doc.save(buff); doc.close()
-            zf.writestr(f"{file_stub}.pdf", buff.getvalue())
+            buf = io.BytesIO(); doc.save(buf); doc.close()
+            zf.writestr(f"{file_stub}.pdf", buf.getvalue())
 
         log_rows.append({
             "row_index": idx, "first_name": first, "last_name": last, "npi": npi,
@@ -80,20 +77,14 @@ def run_cover_mode(excel_bytes: bytes, form_bytes: bytes):
             "status": status, "reasons": "; ".join(reasons)
         })
 
-    # add run log
-    log_df = pd.DataFrame(log_rows)
-    log_buf = io.StringIO()
-    log_df.to_csv(log_buf, index=False)
-    zf.writestr("run_log.csv", log_buf.getvalue())
-
-    zf.close(); output.seek(0)
-    return output.getvalue()
+    log_df = pd.DataFrame(log_rows); s = io.StringIO()
+    log_df.to_csv(s, index=False); zf.writestr("run_log.csv", s.getvalue())
+    zf.close(); output.seek(0); return output.getvalue()
 
 def run_overlay_mode(excel_bytes: bytes, form_bytes: bytes, fmap_bytes: bytes):
     df = pd.read_excel(io.BytesIO(excel_bytes))
     base_form = fitz.open(stream=form_bytes, filetype="pdf")
     fmap = json.loads(fmap_bytes.decode("utf-8"))
-
     output = io.BytesIO()
     zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
     log_rows = []
@@ -119,8 +110,7 @@ def run_overlay_mode(excel_bytes: bytes, form_bytes: bytes, fmap_bytes: bytes):
             status = "fail"
         else:
             status = "ready"
-            doc = fitz.open()
-            doc.insert_pdf(base_form)  # copy pages
+            doc = fitz.open(); doc.insert_pdf(base_form)
             values = {
                 "provider_name": f"{first} {last}",
                 "npi": npi,
@@ -131,16 +121,11 @@ def run_overlay_mode(excel_bytes: bytes, form_bytes: bytes, fmap_bytes: bytes):
             for key, val in values.items():
                 cfg = fmap.get(key)
                 if not cfg: continue
-                page_idx = int(cfg.get("page", 0))
-                x = float(cfg.get("x", 72))
-                y = float(cfg.get("y", 72))
-                fs = float(cfg.get("font_size", 10))
-                page = doc.load_page(page_idx)
-                page.insert_text((x,y), str(val), fontsize=fs)
-
-            buff = io.BytesIO()
-            doc.save(buff); doc.close()
-            zf.writestr(f"{file_stub}.pdf", buff.getvalue())
+                page = doc.load_page(int(cfg.get("page",0)))
+                page.insert_text((float(cfg.get("x",72)), float(cfg.get("y",72))), str(val),
+                                 fontsize=float(cfg.get("font_size",10)))
+            buf = io.BytesIO(); doc.save(buf); doc.close()
+            zf.writestr(f"{file_stub}.pdf", buf.getvalue())
 
         log_rows.append({
             "row_index": idx, "first_name": first, "last_name": last, "npi": npi,
@@ -148,10 +133,6 @@ def run_overlay_mode(excel_bytes: bytes, form_bytes: bytes, fmap_bytes: bytes):
             "status": status, "reasons": "; ".join(reasons)
         })
 
-    log_df = pd.DataFrame(log_rows)
-    log_buf = io.StringIO()
-    log_df.to_csv(log_buf, index=False)
-    zf.writestr("run_log.csv", log_buf.getvalue())
-
-    zf.close(); output.seek(0)
-    return output.getvalue()
+    log_df = pd.DataFrame(log_rows); s = io.StringIO()
+    log_df.to_csv(s, index=False); zf.writestr("run_log.csv", s.getvalue())
+    zf.close(); output.seek(0); return output.getvalue()
